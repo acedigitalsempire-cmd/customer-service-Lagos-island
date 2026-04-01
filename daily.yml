@@ -1,0 +1,52 @@
+name: Daily Lagos Island Job Alert
+
+on:
+  schedule:
+    - cron: "0 7 * * *"   # 8:00 AM Nigeria Time (WAT = UTC+1)
+  workflow_dispatch:
+
+jobs:
+  send-job-alert:
+    name: Scrape & Send Job Alert
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Job Alert
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          # Leave EMAIL_FROM secret empty/unset to use default: onboarding@resend.dev
+          # Set it only if you have a verified domain on Resend
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          RECEIVER_EMAIL: "jobhauntgithub@gmail.com"
+        run: python main.py
+
+      - name: Upload Job CSV
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: job-results-${{ github.run_id }}
+          path: "jobs_*.csv"
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: log-${{ github.run_id }}
+          path: job_alert.log
+          if-no-files-found: ignore
+          retention-days: 7
